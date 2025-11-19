@@ -47,13 +47,23 @@ const signup = catchAsync(async (req, res, next) => {
       );
     }
 
-    // Send OTP via email
-    await SendGridService.sendOtp(name, email, otp);
+    // Store OTP payload in Redis first so signup flow continues even if email fails
     const redisData = { name, email, password, otp };
-
     await redis.set(redisKey, JSON.stringify(redisData), { ex: 600 });
 
-    return successResponse(res, 201, "OTP sent to your email. Please verify.");
+    // Attempt to send OTP email but do not fail the signup flow if email provider rejects
+    try {
+      await SendGridService.sendOtp(name, email, otp);
+      return successResponse(res, 201, "OTP sent to your email. Please verify.");
+    } catch (emailErr) {
+      logger.error('Failed to send OTP email', emailErr.message || emailErr);
+      // Return success (OTP created) but include a warning so frontend can surface it
+      return res.status(201).json({
+        success: true,
+        message: 'OTP generated. Sending OTP email failed — contact support or try again.',
+        warning: true
+      });
+    }
   } catch (error) {
     logger.error("Error during signup:", error);
     return next(

@@ -25,6 +25,14 @@ const {
 const router = express.Router();
 
 router.post("/signup", validateSignup, signup);
+// Helpful GET handler for accidental GET requests (returns instruction)
+router.get("/signup", (req, res) => {
+  return res.status(405).json({
+    success: false,
+    message:
+      "Use POST /api/v1/auth/signup with JSON body { name, email, password } to create an account."
+  });
+});
 router.post("/verify-otp", validateVerifyOtp, verifyOtp);
 router.post("/resend-otp", validateSendOtp, resendOtp);
 router.post("/login", validateLogin, login);

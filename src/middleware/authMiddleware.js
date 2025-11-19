@@ -40,7 +40,7 @@ const protect = async (req, res, next) => {
         );
       }
       // Attach employee info and set role
-      req.user = { _id: user._id, employeeId: user.employeeId, name: user.name, role: "employee" };
+      req.user = { _id: user._id, id: user._id.toString(), employeeId: user.employeeId, name: user.name, role: "employee" };
       req.isAuthenticated = true;
       // If token is sent in body, also support it for backward compatibility
       if (!req.headers["x-access-token"] && req.body.token) {
@@ -51,7 +51,13 @@ const protect = async (req, res, next) => {
     if (!user.isActive) {
       return next(new AppError("Your account has been deactivated.", 401));
     }
+    // Normalize req.user to include a plain `id` property for downstream checks
     req.user = user;
+    try {
+      req.user.id = user._id ? user._id.toString() : user.id;
+    } catch (e) {
+      // ignore
+    }
     req.isAuthenticated = true;
     next();
   } catch (error) {
