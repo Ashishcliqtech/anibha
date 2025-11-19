@@ -1,0 +1,292 @@
+# Admin Panel API Documentation
+
+This documentation is for frontend developers building the Admin Panel for Aspencask. It covers all admin features, endpoints, and expected data for managing users, employees, courses, events, blogs, certificates, testimonials, and especially for viewing employee daily work.
+
+---
+
+## Authentication (Admin)
+- **Login:**
+  - `POST /api/v1/auth/login`
+  - Body: `{ email, password }`
+  - Response: `{ message, token, user }` (token in `x-access-token` header)
+- **Logout:**
+  - `POST /api/v1/auth/logout` (header: `x-access-token`)
+- **Get Profile:**
+  - `GET /api/v1/auth/me` (header: `x-access-token`)
+
+---
+
+## Employee Management
+
+### Create Employee
+- `POST /api/v1/employee/createEmployee`
+- Headers: `x-access-token` (admin)
+- Body: `{ name, employeeId, password }`
+- Response: `{ message, employeeId }`
+
+### List All Employees
+- `GET /api/v1/employee/all`
+- Headers: `x-access-token` (admin)
+- Response: `[ { _id, name, employeeId, createdBy, ... } ]`
+
+### View Employee Daily Work
+- `GET /api/v1/employee/:employeeId/daily-work`
+- Headers: `x-access-token` (admin)
+- Response: `{ employeeId, name, dailyWork: [ { date, description } ] }`
+
+### (Optional) List All Daily Work (All Employees)
+- `GET /api/v1/employee/daily-work/all`
+- Headers: `x-access-token` (admin)
+- Response: `[ { employeeId, name, dailyWork: [ { date, description } ] } ]`
+
+---
+
+## Course, Event, Blog, Certificate, Testimonial Management
+- See `api.txt` for endpoints. All admin actions require `x-access-token` header.
+
+---
+
+## Schema for Employee & Daily Work
+
+### Employee
+- `_id` (string)
+- `name` (string)
+- `employeeId` (string)
+- `createdBy` (admin user id)
+- `dailyWork` (array of objects)
+  - `date` (ISO string)
+  - `description` (string)
+
+### Example: Employee List Response
+```json
+[
+  {
+    "_id": "...",
+    "name": "John Doe",
+    "employeeId": "EMP001",
+    "createdBy": "...",
+    "dailyWork": [
+      { "date": "2025-08-29T10:00:00.000Z", "description": "Worked on project X." },
+      { "date": "2025-08-30T10:00:00.000Z", "description": "Completed module Y." }
+    ]
+  },
+  ...
+]
+```
+
+---
+
+## Admin Panel Features Checklist
+- [x] Login/Logout as admin
+- [x] View all employees
+- [x] Create new employee
+- [x] View daily work of any employee
+- [x] View all daily work (all employees)
+- [x] Manage courses, events, blogs, certificates, testimonials
+
+---
+
+## Notes
+- All admin endpoints require `x-access-token` header (JWT for admin)
+- Use GET endpoints to fetch lists and details for tables and dashboards
+- Use POST/PUT/DELETE for create/update/delete actions
+- For any missing endpoint, refer to `api.txt` or backend team
+
+---
+
+If you need more sample responses or want to add new admin features, contact the backend team.
+
+---
+
+# Admin Features & CRUD API Documentation
+
+This section details all features and CRUD operations available to admins in the Aspencask system. Use this as a reference for building the admin panel frontend.
+
+## 1. Employee Management
+
+- **Create Employee**
+  - `POST /api/v1/employee/createEmployee`
+  - Body: `{ name, employeeId, password }`
+  - Response: `{ message, employeeId }`
+
+- **List All Employees**
+  - `GET /api/v1/employee/all`
+  - Response: `[ { _id, name, employeeId, createdBy, dailyWork } ]`
+
+- **View Employee Details**
+  - `GET /api/v1/employee/:employeeId`
+  - Response: `{ _id, name, employeeId, createdBy, dailyWork }`
+
+- **Update Employee**
+  - `PUT /api/v1/employee/:employeeId`
+  - Body: `{ name?, password? }`
+  - Response: `{ message, employee }`
+
+- **Delete Employee**
+  - `DELETE /api/v1/employee/:employeeId`
+  - Response: `{ message }`
+
+- **View Employee Daily Work**
+  - `GET /api/v1/employee/:employeeId/daily-work`
+  - Response: `{ employeeId, name, dailyWork: [ { date, description } ] }`
+
+- **List All Daily Work (All Employees)**
+  - `GET /api/v1/employee/daily-work/all`
+  - Response: `[ { employeeId, name, dailyWork: [ { date, description } ] } ]`
+
+## 2. User Management
+
+- **List All Users**
+  - `GET /api/v1/admin/users`
+  - Response: `[ { _id, name, email, role, isActive } ]`
+
+- **View User Details**
+  - `GET /api/v1/admin/users/:userId`
+  - Response: `{ _id, name, email, role, isActive }`
+
+- **Update User**
+  - `PUT /api/v1/admin/users/:userId`
+  - Body: `{ name?, email?, role?, isActive? }`
+  - Response: `{ message, user }`
+
+- **Delete User**
+  - `DELETE /api/v1/admin/users/:userId`
+  - Response: `{ message }`
+
+## 3. Course Management
+
+- **Create Course**
+  - `POST /api/v1/admin/courses`
+  - Body: `{ title, description, image }`
+  - Response: `{ message, course }`
+
+- **List All Courses**
+  - `GET /api/v1/courses`
+  - Response: `[ { ...course fields } ]`
+
+- **View Course**
+  - `GET /api/v1/courses/:id`
+  - Response: `{ ...course fields }`
+
+- **Update Course**
+  - `PUT /api/v1/admin/courses/:id`
+  - Body: `{ title?, description?, image? }`
+  - Response: `{ message, course }`
+
+- **Delete Course**
+  - `DELETE /api/v1/admin/courses/:id`
+  - Response: `{ message }`
+
+## 4. Event Management
+
+- **Create Event**
+  - `POST /api/v1/admin/events`
+  - Body: `{ title, description, date, image }`
+  - Response: `{ message, event }`
+
+- **List All Events**
+  - `GET /api/v1/events`
+  - Response: `[ { ...event fields } ]`
+
+- **View Event**
+  - `GET /api/v1/events/:id`
+  - Response: `{ ...event fields }`
+
+- **Update Event**
+  - `PUT /api/v1/admin/events/:id`
+  - Body: `{ title?, description?, date?, image? }`
+  - Response: `{ message, event }`
+
+- **Delete Event**
+  - `DELETE /api/v1/admin/events/:id`
+  - Response: `{ message }`
+
+## 5. Blog Management
+
+- **Create Blog**
+  - `POST /api/v1/blogs`
+  - Body: `{ title, content, author }`
+  - Response: `{ message, blog }`
+
+- **List All Blogs**
+  - `GET /api/v1/blogs`
+  - Response: `[ { ...blog fields } ]`
+
+- **View Blog**
+  - `GET /api/v1/blogs/:id`
+  - Response: `{ ...blog fields }`
+
+- **Update Blog**
+  - `PUT /api/v1/blogs/:id`
+  - Body: `{ title?, content?, author? }`
+  - Response: `{ message, blog }`
+
+- **Delete Blog**
+  - `DELETE /api/v1/blogs/:id`
+  - Response: `{ message }`
+
+## 6. Certificate Management
+
+- **Create Certificate**
+  - `POST /api/v1/certificates`
+  - Body: `{ user, course, issuedAt }`
+  - Response: `{ message, certificate }`
+
+- **List All Certificates**
+  - `GET /api/v1/certificates`
+  - Response: `[ { ...certificate fields } ]`
+
+- **View Certificate**
+  - `GET /api/v1/certificates/:id`
+  - Response: `{ ...certificate fields }`
+
+- **Delete Certificate**
+  - `DELETE /api/v1/certificates/:id`
+  - Response: `{ message }`
+
+## 7. Testimonial Management
+
+- **List All Testimonials**
+  - `GET /api/v1/testimonials`
+  - Response: `[ { ...testimonial fields } ]`
+
+- **Create Testimonial**
+  - `POST /api/v1/testimonials`
+  - Body: `{ name, message }`
+  - Response: `{ message, testimonial }`
+
+- **Delete Testimonial**
+  - `DELETE /api/v1/testimonials/:id`
+  - Response: `{ message }`
+
+## 8. Enquiry Management
+
+- **List All Enquiries**
+  - `GET /api/v1/admin/enquiries`
+  - Response: `[ { ...enquiry fields } ]`
+
+- **View Enquiry**
+  - `GET /api/v1/admin/enquiries/:id`
+  - Response: `{ ...enquiry fields }`
+
+- **Delete Enquiry**
+  - `DELETE /api/v1/admin/enquiries/:id`
+  - Response: `{ message }`
+
+## 9. File Uploads
+
+- **Upload Image**
+  - `POST /api/v1/upload/image`
+  - Body: `multipart/form-data` with `file`
+  - Response: `{ url }`
+
+- **Upload PDF**
+  - `POST /api/v1/upload/pdf`
+  - Body: `multipart/form-data` with `file`
+  - Response: `{ url }`
+
+---
+
+All admin endpoints require `x-access-token` header (JWT for admin).
+For more details, see the controller files or ask for specific endpoint samples.
+```

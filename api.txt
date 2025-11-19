@@ -1,0 +1,267 @@
+📑 API Endpoints Summary
+
+
+ 🛡️ Auth Routes (`/api/v1/auth`)
+
+| Method | URL                              | Description                                    | Access          |
+| :----- | :------------------------------- | :--------------------------------------------- | :-------------- |
+| POST   | `/api/v1/auth/signup`            | Register a new user with email, password, etc. | Public          |
+| POST   | `/api/v1/auth/verify-otp`        | Verify user via OTP after signup               | Public          |
+| POST   | `/api/v1/auth/send-otp`          | Send an OTP to the user (email or phone)       | Public          |
+| POST   | `/api/v1/auth/login`             | Log in a user and issue tokens                 | Public          |
+| GET    | `/api/v1/auth/refresh-token`     | Get a new access token via refresh token       | Public          |
+| POST   | `/api/v1/auth/logout`            | Log out current user                           | Logged-in users |
+| POST   | `/api/v1/auth/forgot-password`   | Initiate password reset via OTP                | Public          |
+| POST   | `/api/v1/auth/reset-password`    | Reset password after OTP verification          | Public          |
+| POST   | `/api/v1/auth/verify-forgot-otp` | Verify OTP for forgot password process         | Public          |
+| POST   | `/api/v1/auth/change-password`   | Change password for logged-in user             | Logged-in users |
+| GET    | `/api/v1/auth/me`                | Get current logged-in user's profile info      | Logged-in users |
+
+---
+
+ 🎓 Course Routes (`/api/v1`)
+
+ Public
+
+| Method | URL                   | Description                            |
+| :----- | :-------------------- | :------------------------------------- |
+| GET    | `/api/v1/courses`     | Get list of all courses                |
+| GET    | `/api/v1/courses/:id` | Get details of a specific course by ID |
+
+ Admin (Protected + Admin Only)
+
+| Method | URL                         | Description                             |
+| :----- | :-------------------------- | :-------------------------------------- |
+| POST   | `/api/v1/admin/courses`     | Create a new course (with image upload) |
+| PUT    | `/api/v1/admin/courses/:id` | Update course by ID (image optional)    |
+| DELETE | `/api/v1/admin/courses/:id` | Delete a course by ID                   |
+
+---
+
+ 📅 Event Routes (`/api/v1`)
+
+ Public & User
+
+| Method | URL                         | Description                               |
+| :----- | :-------------------------- | :---------------------------------------- |
+| GET    | `/api/v1/events`            | Get list of all events                    |
+| GET    | `/api/v1/events/:id`        | Get event details by ID                   |
+| POST   | `/api/v1/events/:id/enroll` | Enroll logged-in user into an event by ID |
+
+ Admin (Protected + Admin Only)
+
+| Method | URL                        | Description                                 |
+| :----- | :------------------------- | :------------------------------------------ |
+| POST   | `/api/v1/admin/events`     | Create a new event (with image upload)      |
+| PUT    | `/api/v1/admin/events/:id` | Update event details by ID (image optional) |
+| DELETE | `/api/v1/admin/events/:id` | Soft delete an event by ID                  |
+GET	    /api/v1/admin/enrollments/pending	                        Fetch all pending (unpaid) enrollments
+POST	/api/v1/admin/enrollments/:enrollmentId/confirm	        Confirm payment for an enrollment (mark as paid)
+
+---
+
+ 📊 Miscellaneous
+
+| Method | URL       | Description           |
+| :----- | :-------- | :-------------------- |
+| GET    | `/health` | Health check endpoint |
+| GET    | `/`       | Root welcome message  |
+
+---
+
+ ✅ Notes
+
+ All Admin routes require both `protect` (authentication) and `adminOnly` (role check) middleware.
+ Image uploads for events and courses handled via `uploadToCloudinary('image')`.
+ Auth routes have appropriate validation middleware for input sanitization.
+ Rate limiting, CORS, XSS protection, and MongoDB sanitization are globally applied in the server.
+
+---
+
+# API Documentation
+
+This documentation covers all main routes, controllers, authentication, and upload endpoints for the Aspencask backend. Use this as a reference for frontend integration.
+
+---
+
+## Authentication (User/Admin)
+
+### Signup
+- **POST** `/api/v1/auth/signup`
+- **Body:** `{ name, email, password }`
+- **Response:** User created, OTP sent
+
+### Login
+- **POST** `/api/v1/auth/login`
+- **Body:** `{ email, password }`
+- **Response:** `{ message, token, user }` (token in `x-access-token` header)
+
+### Logout
+- **POST** `/api/v1/auth/logout`
+- **Headers:** `x-access-token`
+- **Response:** Logout success
+
+### Get Current User
+- **GET** `/api/v1/auth/me`
+- **Headers:** `x-access-token`
+- **Response:** User info
+
+### Refresh Token
+- **GET** `/api/v1/auth/refresh-token`
+- **Headers:** `x-refresh-token`
+- **Response:** New access token
+
+---
+
+## Employee Management
+
+### Create Employee (Admin only)
+- **POST** `/api/v1/employee/createEmployee`
+- **Headers:** `x-access-token` (admin)
+- **Body:** `{ name, employeeId, password }`
+- **Response:** `{ message, employeeId }`
+
+### Employee Login
+- **POST** `/api/v1/employee/login`
+- **Body:** `{ employeeId, password }`
+- **Response:** `{ message, employee }` (token in `x-access-token` header)
+
+### Employee Daily Work Update
+- **POST** `/api/v1/employee/daily-work`
+- **Headers:** `x-access-token` (employee)
+- **Body:** `{ description }`
+- **Response:** `{ message }`
+
+---
+
+## Course, Event, Blog, Certificate, Testimonial, Enquiry
+
+### Courses
+- **GET** `/api/v1/courses` — List all courses
+- **POST** `/api/v1/courses` — Create (admin only)
+- **GET** `/api/v1/courses/:id` — Get course by ID
+- **PUT** `/api/v1/courses/:id` — Update (admin only)
+- **DELETE** `/api/v1/courses/:id` — Delete (admin only)
+
+### Events
+- **GET** `/api/v1/events` — List all events
+- **POST** `/api/v1/events` — Create (admin only)
+- **GET** `/api/v1/events/:id` — Get event by ID
+- **PUT** `/api/v1/events/:id` — Update (admin only)
+- **DELETE** `/api/v1/events/:id` — Delete (admin only)
+
+### Blogs
+- **GET** `/api/v1/blogs` — List all blogs
+- **POST** `/api/v1/blogs` — Create (admin only)
+- **GET** `/api/v1/blogs/:id` — Get blog by ID
+- **PUT** `/api/v1/blogs/:id` — Update (admin only)
+- **DELETE** `/api/v1/blogs/:id` — Delete (admin only)
+
+### Certificates
+- **GET** `/api/v1/certificates` — List all certificates
+- **POST** `/api/v1/certificates` — Create (admin only)
+- **GET** `/api/v1/certificates/:id` — Get certificate by ID
+- **DELETE** `/api/v1/certificates/:id` — Delete (admin only)
+
+### Testimonials
+- **GET** `/api/v1/testimonials` — List all testimonials
+- **POST** `/api/v1/testimonials` — Create
+- **DELETE** `/api/v1/testimonials/:id` — Delete (admin only)
+
+### Enquiries
+- **POST** `/api/v1/enquiry` — Submit enquiry
+
+---
+
+## File Uploads
+
+### Upload Image (Admin only)
+- **POST** `/api/v1/upload/image`
+- **Headers:** `x-access-token` (admin)
+- **Body:** `multipart/form-data` with `file`
+- **Response:** `{ url }`
+
+### Upload PDF (Admin only)
+- **POST** `/api/v1/upload/pdf`
+- **Headers:** `x-access-token` (admin)
+- **Body:** `multipart/form-data` with `file`
+- **Response:** `{ url }`
+
+---
+
+## Database Schema Overview
+
+### User (src/models/User.js)
+- **Fields:**
+  - `name` (String, required)
+  - `email` (String, required, unique)
+  - `password` (String, required, min 6 chars, select: false)
+  - `role` (String, enum: ["user", "admin"], default: "user")
+  - `isActive` (Boolean, default: true)
+  - `lastLogin` (Date)
+  - ...other fields as per model
+
+### Employee (src/models/Employee.js)
+- **Fields:**
+  - `name` (String, required)
+  - `employeeId` (String, required, unique)
+  - `password` (String, required)
+  - `dailyWork` (Array of objects)
+    - `date` (Date, default: now)
+    - `description` (String, required)
+  - `createdBy` (ObjectId, ref: User, admin who created)
+
+### Course (src/models/Course.js)
+- **Fields:**
+  - `title` (String, required, unique)
+  - `description` (String)
+  - `image` (String, URL)
+  - ...other fields as per model
+
+### Event (src/models/Event.js)
+- **Fields:**
+  - `title` (String, required, unique)
+  - `description` (String)
+  - `date` (Date)
+  - ...other fields as per model
+
+### Blog (src/models/blogModel.js)
+- **Fields:**
+  - `title` (String, required, unique)
+  - `content` (String)
+  - `author` (ObjectId, ref: User)
+  - ...other fields as per model
+
+### Certificate (src/models/Certificate.js)
+- **Fields:**
+  - `user` (ObjectId, ref: User)
+  - `course` (ObjectId, ref: Course)
+  - `issuedAt` (Date)
+  - ...other fields as per model
+
+### Testimonial (src/models/Testimonial.js)
+- **Fields:**
+  - `name` (String)
+  - `message` (String)
+  - ...other fields as per model
+
+### Enquiry (src/models/Enquiry.js)
+- **Fields:**
+  - `fullName` (String)
+  - `email` (String)
+  - `phone` (String)
+  - `message` (String)
+  - ...other fields as per model
+
+---
+
+## General Notes
+- All protected routes require `x-access-token` header (JWT).
+- Admin-only routes require the user to have `role: admin`.
+- Employee routes require `role: employee`.
+- All responses are JSON.
+- Error responses: `{ success: false, error: "..." }`
+
+---
+
+For more details on request/response structure, see the controller files or ask for specific endpoint samples.
