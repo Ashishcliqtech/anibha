@@ -12,7 +12,7 @@ const {
 } = require('../controllers/productController');
 
 const { protect, adminOnly } = require('../middleware/authMiddleware');
-const { uploadImageToCloudinary } = require('../middleware/uploadMiddleware');
+const { uploadImagesToCloudinary } = require('../middleware/uploadMiddleware');
 
 // Public
 router.get('/products', getUserProducts);
@@ -27,7 +27,11 @@ router.post(
   '/admin/create-products',
   protect,
   adminOnly,
-  uploadImageToCloudinary('images', 'products'),
+  // accept a single main image and additional images in one request
+  uploadImagesToCloudinary([
+    { name: 'mainImage', maxCount: 1 },
+    { name: 'images', maxCount: 10 }
+  ], 'products'),
   createProduct
 );
 
@@ -36,7 +40,11 @@ router.patch(
   '/admin/products/:id',
   protect,
   adminOnly,
-  uploadImageToCloudinary('images', 'products'),
+  // accept a single main image and additional images in one request
+  uploadImagesToCloudinary([
+    { name: 'mainImage', maxCount: 1 },
+    { name: 'images', maxCount: 10 }
+  ], 'products'),
   updateProduct
 );
 // Admin: update product stock

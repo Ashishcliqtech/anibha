@@ -21,10 +21,48 @@ const createProduct = catchAsync(async (req, res, next) => {
     metalType,
     gemstones,
     images,
+    mainImage,
     stock,
     tags,
     weightInGrams,
     dimensions
+  } = req.body;
+
+  // MRP / discount fields (server will compute selling price from these when provided)
+  const { mrp, discountPercent, discountAmount } = req.body;
+
+  // Validate discount inputs early
+  const parsedMrp = (mrp !== undefined && mrp !== null && mrp !== '') ? Number(mrp) : undefined;
+  const parsedDiscountPercent = (discountPercent !== undefined && discountPercent !== null && discountPercent !== '') ? Number(discountPercent) : undefined;
+  const parsedDiscountAmount = (discountAmount !== undefined && discountAmount !== null && discountAmount !== '') ? Number(discountAmount) : undefined;
+
+  if (parsedDiscountPercent !== undefined && (isNaN(parsedDiscountPercent) || parsedDiscountPercent < 0 || parsedDiscountPercent > 100)) {
+    return next(new AppError('`discountPercent` must be a number between 0 and 100', 400));
+  }
+  if (parsedDiscountAmount !== undefined && (isNaN(parsedDiscountAmount) || parsedDiscountAmount < 0)) {
+    return next(new AppError('`discountAmount` must be a non-negative number', 400));
+  }
+
+  // Additional descriptive fields from product detail view
+  const {
+    brand,
+    modelNumber,
+    baseMaterial,
+    color,
+    type: productType,
+    idealFor,
+    plating,
+    certification,
+    netQuantity,
+    brandColor,
+    warrantySummary,
+    domesticWarranty,
+    internationalWarranty,
+    salesPackage,
+    collection,
+    occasion,
+    otherDimensions,
+    chainLength
   } = req.body;
 
   // Basic validation - rely on mongoose for deep validation
@@ -35,6 +73,7 @@ const createProduct = catchAsync(async (req, res, next) => {
   const productData = {
     name,
     description,
+    // price may be computed below from MRP/discount; include provided price as fallback
     price,
     currency,
     sku,
@@ -43,11 +82,58 @@ const createProduct = catchAsync(async (req, res, next) => {
     metalType,
     gemstones: Array.isArray(gemstones) ? gemstones : (gemstones ? [gemstones] : []),
     images: Array.isArray(images) ? images : (images ? [images] : []),
+    mainImage: mainImage || undefined,
     stock: stock || 0,
     tags: Array.isArray(tags) ? tags : (tags ? [tags] : []),
     weightInGrams,
     dimensions
   };
+
+  // Include MRP/discount into saved document (optional)
+  if (parsedMrp !== undefined) productData.mrp = parsedMrp;
+  if (parsedDiscountPercent !== undefined) productData.discountPercent = parsedDiscountPercent;
+  if (parsedDiscountAmount !== undefined) productData.discountAmount = parsedDiscountAmount;
+
+  // Compute price from MRP + discount if provided. Priority:
+  // 1) If mrp + discountPercent => price = mrp * (1 - discountPercent/100)
+  // 2) Else if mrp + discountAmount => price = mrp - discountAmount
+  // 3) Else if mrp only => price = mrp
+  // 4) Else use provided `price` value
+  if (productData.mrp !== undefined && productData.mrp !== null) {
+    const m = Number(productData.mrp);
+    if (productData.discountPercent !== undefined && productData.discountPercent !== null) {
+      productData.price = Math.max(0, Math.round((m * (1 - Number(productData.discountPercent) / 100)) * 100) / 100);
+    } else if (productData.discountAmount !== undefined && productData.discountAmount !== null) {
+      productData.price = Math.max(0, Math.round((m - Number(productData.discountAmount)) * 100) / 100);
+    } else {
+      productData.price = Math.round(m * 100) / 100;
+    }
+  }
+
+  // Ensure MRP is not less than computed price
+  if (productData.mrp !== undefined && productData.price !== undefined && productData.price > productData.mrp) {
+    return next(new AppError('Computed selling price cannot exceed MRP', 400));
+  }
+
+  // Include optional descriptive fields if provided
+  if (brand) productData.brand = brand;
+  if (modelNumber) productData.modelNumber = modelNumber;
+  if (baseMaterial) productData.baseMaterial = baseMaterial;
+  if (color) productData.color = color;
+  if (productType) productData.type = productType;
+  if (idealFor) productData.idealFor = idealFor;
+  if (plating) productData.plating = plating;
+  if (certification) productData.certification = certification;
+  if (netQuantity !== undefined) productData.netQuantity = Number(netQuantity);
+  if (brandColor) productData.brandColor = brandColor;
+  if (warrantySummary) productData.warrantySummary = warrantySummary;
+  if (domesticWarranty) productData.domesticWarranty = domesticWarranty;
+  if (internationalWarranty) productData.internationalWarranty = internationalWarranty;
+  if (salesPackage) productData.salesPackage = salesPackage;
+  if (collection) productData.collection = collection;
+  if (occasion) productData.occasion = occasion;
+  if (otherDimensions) productData.otherDimensions = otherDimensions;
+  if (chainLength) productData.chainLength = chainLength;
 
   if (req.user && req.user.id) productData.createdBy = req.user.id;
 
@@ -69,6 +155,60 @@ const updateProduct = catchAsync(async (req, res, next) => {
   }
   if (updateData.images && !Array.isArray(updateData.images)) {
     updateData.images = [updateData.images];
+  }
+  // Allow updating/replacing mainImage as a string URL
+  if (updateData.mainImage !== undefined && updateData.mainImage !== null) {
+    updateData.mainImage = updateData.mainImage;
+  }
+
+  // If MRP/discount values are being updated, compute price accordingly
+  // Recompute price if any price-related fields are changing
+  const priceFieldTouched = (updateData.mrp !== undefined) || (updateData.discountPercent !== undefined) || (updateData.discountAmount !== undefined);
+  if (priceFieldTouched) {
+    const effectiveMrp = (updateData.mrp !== undefined && updateData.mrp !== null && updateData.mrp !== '') ? Number(updateData.mrp) : existing.mrp;
+    const effectiveDiscountPercent = (updateData.discountPercent !== undefined && updateData.discountPercent !== null && updateData.discountPercent !== '') ? Number(updateData.discountPercent) : existing.discountPercent;
+    const effectiveDiscountAmount = (updateData.discountAmount !== undefined && updateData.discountAmount !== null && updateData.discountAmount !== '') ? Number(updateData.discountAmount) : existing.discountAmount;
+
+    if (effectiveDiscountPercent !== undefined && effectiveDiscountPercent !== null && (isNaN(effectiveDiscountPercent) || effectiveDiscountPercent < 0 || effectiveDiscountPercent > 100)) {
+      return next(new AppError('`discountPercent` must be a number between 0 and 100', 400));
+    }
+    if (effectiveDiscountAmount !== undefined && (isNaN(effectiveDiscountAmount) || effectiveDiscountAmount < 0)) {
+      return next(new AppError('`discountAmount` must be a non-negative number', 400));
+    }
+
+    if (effectiveMrp !== undefined && effectiveMrp !== null) {
+      const m = Number(effectiveMrp);
+      let newPrice = undefined;
+      if (effectiveDiscountPercent !== undefined && effectiveDiscountPercent !== null) {
+        newPrice = Math.max(0, Math.round((m * (1 - Number(effectiveDiscountPercent) / 100)) * 100) / 100);
+      } else if (effectiveDiscountAmount !== undefined && effectiveDiscountAmount !== null) {
+        newPrice = Math.max(0, Math.round((m - Number(effectiveDiscountAmount)) * 100) / 100);
+      } else {
+        newPrice = Math.round(m * 100) / 100;
+      }
+
+      // Ensure computed price does not exceed MRP
+      if (newPrice > m) {
+        return next(new AppError('Computed selling price cannot exceed MRP', 400));
+      }
+
+      updateData.price = newPrice;
+    } else {
+      // No effective MRP available; if discounts are provided without MRP we cannot validate; allow setting discount fields but do not compute price
+      if (updateData.discountPercent !== undefined || updateData.discountAmount !== undefined) {
+        // Try to compute using existing.mrp if present
+        if (existing.mrp !== undefined && existing.mrp !== null) {
+          const m = Number(existing.mrp);
+          let newPrice;
+          if (effectiveDiscountPercent !== undefined && effectiveDiscountPercent !== null) {
+            newPrice = Math.max(0, Math.round((m * (1 - Number(effectiveDiscountPercent) / 100)) * 100) / 100);
+          } else if (effectiveDiscountAmount !== undefined && effectiveDiscountAmount !== null) {
+            newPrice = Math.max(0, Math.round((m - Number(effectiveDiscountAmount)) * 100) / 100);
+          }
+          if (newPrice !== undefined) updateData.price = newPrice;
+        }
+      }
+    }
   }
 
   const product = await Product.findByIdAndUpdate(productId, updateData, {
