@@ -1,10 +1,11 @@
 const dotenv = require("dotenv");
-const result = dotenv.config();
 
-if (result.error) {
-  console.error("Error loading .env file:", result.error);
-  throw result.error;
-}
+// Load environment variables from .env file.
+// In a production environment like Render, this file might not exist.
+// In that case, the application will rely on environment variables
+// set directly in the hosting platform's dashboard.
+// We've removed the code that would cause a crash if the .env file is missing.
+dotenv.config();
 
 // Helper function to parse time strings (e.g., "15m", "7d") into milliseconds
 const parseTimeToMs = (timeString, defaultValueMs) => {
