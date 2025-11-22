@@ -1,4 +1,10 @@
-require("dotenv").config();
+const dotenv = require("dotenv");
+const result = dotenv.config();
+
+if (result.error) {
+  console.error("Error loading .env file:", result.error);
+  throw result.error;
+}
 
 // Helper function to parse time strings (e.g., "15m", "7d") into milliseconds
 const parseTimeToMs = (timeString, defaultValueMs) => {
@@ -28,6 +34,7 @@ module.exports = {
     process.env.MONGODB_URI || "mongodb://localhost:27017/enterprise-db",
   REFRESH_TOKEN_LENGTH: process.env.REFRESH_TOKEN_LENGTH || 64,
   REFRESH_TOKEN_EXPIRE: process.env.REFRESH_TOKEN_EXPIRE,
+  APP_NAME: process.env.APP_NAME || 'Edunova',
 
   // Cloudinary configuration
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,

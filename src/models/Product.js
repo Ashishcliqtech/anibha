@@ -65,7 +65,7 @@ const productSchema = new mongoose.Schema({
   domesticWarranty: { type: String, trim: true },
   internationalWarranty: { type: String, trim: true },
   salesPackage: { type: String, trim: true },
-  collection: { type: String, trim: true },
+  productCollection: { type: String, trim: true },
   occasion: { type: String, trim: true },
   otherDimensions: { type: String, trim: true },
   chainLength: { type: String, trim: true },
@@ -90,7 +90,8 @@ const productSchema = new mongoose.Schema({
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  toObject: { virtuals: true },
+  suppressReservedKeysWarning: true
 });
 
 // Slug generation

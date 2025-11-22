@@ -95,28 +95,6 @@ const resetPasswordDto = [
   handleValidationErrors,
 ];
 
-const validateCourse = [
-  body("title")
-    .trim()
-    .isLength({ min: 3, max: 100 })
-    .withMessage("Title must be between 3 and 100 characters"),
-  body("description")
-    .trim()
-    .isLength({ min: 10, max: 10000 })
-    .withMessage("Description must be between 10 and 10000 characters"),
-  // If 'image' is a URL string in the body, validate it as such.
-  // If 'image' is handled via file upload middleware (like multer),
-  // then it won't be in body directly and won't need body validation here.
-  // Assuming 'image' is an optional URL string in the body for this validation:
-  body("image")
-    .optional() // Make image optional, or .notEmpty() if it's required
-    .isURL()
-    .withMessage("Image must be a valid URL"),
-  // Removed validations for 'instructor', 'duration', 'price', 'category', 'level'
-  // as they are not present in your provided `createCourse` controller's `req.body` destructuring.
-  handleValidationErrors,
-];
-
 const validateEvent = [
   body("title")
     .trim()
@@ -172,24 +150,6 @@ const validateBlog = [
     .isURL()
     .withMessage("Image URL must be a valid URL"),
 
-  handleValidationErrors,
-];
-
-const validateUpdateCourse = [
-  body("title")
-    .optional() // Make title optional for updates
-    .trim()
-    .isLength({ min: 3, max: 100 })
-    .withMessage("Title must be between 3 and 100 characters"),
-  body("description")
-    .optional() // Make description optional for updates
-    .trim()
-    .isLength({ min: 10, max: 10000 })
-    .withMessage("Description must be between 10 and 10000 characters"),
-  body("image")
-    .optional() // Make image optional for updates (and checkFalsy if empty string is allowed)
-    .isURL()
-    .withMessage("Image must be a valid URL"),
   handleValidationErrors,
 ];
 
@@ -297,7 +257,6 @@ const validateTestimonialDto = [
 module.exports = {
   validateSignup,
   validateLogin,
-  validateCourse,
   validateEvent,
   validateObjectId,
   validateVerifyOtp,
@@ -305,7 +264,6 @@ module.exports = {
   validateChangePasswordDto,
   resetPasswordDto,
   validateBlog,
-  validateUpdateCourse,
   validateUpdateEvent,
   validateUpdateBlog,
   validateCertificate,

@@ -5,10 +5,11 @@ const Product = require('../models/Product');
 const { AppError, catchAsync } = require('../utils/errorUtils');
 const { ERROR_MESSAGES, SUCCESS_MESSAGES } = require('../utils/constant/Messages');
 const successResponse = require('../utils/successResponse');
+const Coupon = require('../models/Coupon');
+const logger = require('../utils/logger');
+
 
 // Checkout: create order from cart with transaction-safe stock decrement
-const Coupon = require('../models/Coupon');
-
 const checkout = catchAsync(async (req, res, next) => {
   const userId = req.user && req.user.id;
   if (!userId) return next(new AppError('Unauthorized', 401));
@@ -150,7 +151,7 @@ const getUserOrders = catchAsync(async (req, res, next) => {
   const skip = (page - 1) * limit;
 
   const [orders, total] = await Promise.all([
-    Order.find({ user: userId }).skip(skip).limit(limit).sort({ createdAt: -1 }),
+    Order.find({ user: userId }).skip(skip).limit(limit).sort({ createdAt: -1 }).populate('items.product', 'name images'),
     Order.countDocuments({ user: userId })
   ]);
 
@@ -161,12 +162,21 @@ const getOrderById = catchAsync(async (req, res, next) => {
   const userId = req.user && req.user.id;
   if (!userId) return next(new AppError('Unauthorized', 401));
 
-  const order = await Order.findById(req.params.id);
+  const order = await Order.findById(req.params.id).populate('items.product', 'name images');
   if (!order) return next(new AppError('Order not found', 404));
-  if (order.user.toString() !== userId.toString() && !req.user.isAdmin) return next(new AppError('Forbidden', 403));
+  if (order.user.toString() !== userId.toString()) return next(new AppError('Forbidden', 403));
 
   successResponse(res, 200, SUCCESS_MESSAGES.ORDER_FETCHED, { order });
 });
+
+const getOrderByIdAdmin = catchAsync(async (req, res, next) => {
+    if (!req.user || !req.user.isAdmin) return next(new AppError('Forbidden', 403));
+    const order = await Order.findById(req.params.id).populate('user', 'name email').populate('items.product', 'name images');
+    if (!order) return next(new AppError('Order not found', 404));
+
+    successResponse(res, 200, SUCCESS_MESSAGES.ORDER_FETCHED, { order });
+});
+
 
 // Admin: update order status
 const updateOrderStatus = catchAsync(async (req, res, next) => {
@@ -182,4 +192,20 @@ const updateOrderStatus = catchAsync(async (req, res, next) => {
   successResponse(res, 200, 'Order updated', { order });
 });
 
-module.exports = { checkout, getUserOrders, getOrderById, updateOrderStatus };
+const getAllOrders = catchAsync(async (req, res, next) => {
+  if (!req.user || !req.user.isAdmin) return next(new AppError('Forbidden', 403));
+
+  const page = Math.max(parseInt(req.query.page) || 1, 1);
+  const limit = Math.max(parseInt(req.query.limit) || 10, 1);
+  const skip = (page - 1) * limit;
+
+  const [orders, total] = await Promise.all([
+    Order.find({}).skip(skip).limit(limit).sort({ createdAt: -1 }).populate('user', 'name email'),
+    Order.countDocuments({})
+  ]);
+
+  successResponse(res, 200, SUCCESS_MESSAGES.ORDER_FETCHED, { orders, total, currentPage: page, totalPages: Math.ceil(total/limit) });
+});
+
+
+module.exports = { checkout, getUserOrders, getOrderById, getOrderByIdAdmin, updateOrderStatus, getAllOrders };
