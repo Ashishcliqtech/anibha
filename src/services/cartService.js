@@ -1,106 +1,91 @@
-const Cart = require('../models/Cart');
-const Product = require('../models/Product');
-const AppError = require('../utils/errorUtils');
-const { ERROR_MESSAGES } = require('../utils/constant/Messages');
+const Cart = require("../models/Cart");
+const AppError = require("../utils/errorUtils");
+const { getProductById } = require("./productService");
+const { ERROR_MESSAGES } = require("../utils/constant/Messages");
 
 const getCartByUserId = async (userId) => {
-  const cart = await Cart.findOne({ user: userId }).populate('items.product', 'name price images stock');
-  if (!cart) {
-    return { items: [], totalPrice: 0 };
-  }
-  return cart;
+  const cart = await Cart.findOne({ user: userId }).populate(
+    "items.product",
+    "name price image"
+  );
+  return cart || { items: [], subTotal: 0 };
 };
 
 const addProductToCart = async (userId, productId, quantity) => {
-  const product = await Product.findById(productId).lean();
-  if (!product || !product.isActive) {
+  if (quantity <= 0) {
+    throw new AppError(ERROR_MESSAGES.INVALID_QUANTITY, 400);
+  }
+  const product = await getProductById(productId);
+  if (!product) {
     throw new AppError(ERROR_MESSAGES.PRODUCT_NOT_FOUND, 404);
   }
 
-  let cart = await Cart.findOne({ user: userId });
-  if (!cart) {
-    cart = new Cart({ user: userId, items: [] });
-  }
+  const cart = await getCartByUserId(userId);
+  const cartItemIndex = cart.items.findIndex(
+    (item) => item.product._id.toString() === productId
+  );
 
-  const existingIndex = cart.items.findIndex(i => i.product.toString() === productId.toString());
-  const newQty = (existingIndex > -1 ? cart.items[existingIndex].quantity : 0) + quantity;
-
-  if (product.stock < newQty) {
-    throw new AppError('Requested quantity not available', 400);
-  }
-
-  if (existingIndex > -1) {
-    cart.items[existingIndex].quantity = newQty;
+  if (cartItemIndex > -1) {
+    cart.items[cartItemIndex].quantity += quantity;
   } else {
-    cart.items.push({
-      product: product._id,
-      quantity,
-      price: product.price,
-      name: product.name,
-      image: (product.images && product.images[0]) || null
-    });
+    cart.items.push({ product: productId, quantity });
   }
 
-  cart.recalculate();
+  cart.subTotal = cart.items.reduce(
+    (acc, item) => acc + item.quantity * product.price,
+    0
+  );
   await cart.save();
-  return cart;
+  return getCartByUserId(userId);
 };
 
 const updateCartItemQuantity = async (userId, productId, quantity) => {
-  const qty = Math.max(parseInt(quantity) || 0, 0);
+  if (quantity <= 0) {
+    throw new AppError(ERROR_MESSAGES.INVALID_QUANTITY, 400);
+  }
+  const cart = await getCartByUserId(userId);
+  const cartItemIndex = cart.items.findIndex(
+    (item) => item.product._id.toString() === productId
+  );
 
-  const product = await Product.findById(productId).lean();
-  if (!product || !product.isActive) {
-    throw new AppError(ERROR_MESSAGES.PRODUCT_NOT_FOUND, 404);
+  if (cartItemIndex === -1) {
+    throw new AppError(ERROR_MESSAGES.PRODUCT_NOT_IN_CART, 404);
   }
 
-  if (qty > product.stock) {
-    throw new AppError('Requested quantity not available', 400);
-  }
-
-  const cart = await Cart.findOne({ user: userId });
-  if (!cart) {
-    throw new AppError('Cart not found', 404);
-  }
-
-  const existingIndex = cart.items.findIndex(i => i.product.toString() === productId.toString());
-  if (existingIndex === -1) {
-    throw new AppError('Product not in cart', 404);
-  }
-
-  if (qty === 0) {
-    cart.items.splice(existingIndex, 1);
-  } else {
-    cart.items[existingIndex].quantity = qty;
-  }
-
-  cart.recalculate();
+  cart.items[cartItemIndex].quantity = quantity;
+  cart.subTotal = cart.items.reduce(
+    (acc, item) => acc + item.quantity * item.product.price,
+    0
+  );
   await cart.save();
-  return cart;
+  return getCartByUserId(userId);
 };
 
 const removeProductFromCart = async (userId, productId) => {
-  const cart = await Cart.findOne({ user: userId });
-  if (!cart) {
-    throw new AppError('Cart not found', 404);
+  const cart = await getCartByUserId(userId);
+  const cartItemIndex = cart.items.findIndex(
+    (item) => item.product._id.toString() === productId
+  );
+
+  if (cartItemIndex === -1) {
+    throw new AppError(ERROR_MESSAGES.PRODUCT_NOT_IN_CART, 404);
   }
 
-  cart.items = cart.items.filter(i => i.product.toString() !== productId.toString());
-  cart.recalculate();
+  const productPrice = cart.items[cartItemIndex].product.price;
+  const productQuantity = cart.items[cartItemIndex].quantity;
+  cart.subTotal -= productPrice * productQuantity;
+  cart.items.splice(cartItemIndex, 1);
+
   await cart.save();
-  return cart;
+  return getCartByUserId(userId);
 };
 
 const clearCart = async (userId) => {
-    const cart = await Cart.findOne({ user: userId });
-    if (cart) {
-        cart.items = [];
-        cart.recalculate();
-        await cart.save();
-    }
-    return;
+  const cart = await getCartByUserId(userId);
+  cart.items = [];
+  cart.subTotal = 0;
+  await cart.save();
 };
-
 
 module.exports = {
   getCartByUserId,

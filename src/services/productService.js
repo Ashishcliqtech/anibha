@@ -1,5 +1,5 @@
 const Product = require('../models/Product');
-const AppError = require('../utils/errorUtils');
+const { AppError } = require('../utils/errorUtils');
 const { ERROR_MESSAGES } = require('../utils/constant/Messages');
 
 /**
