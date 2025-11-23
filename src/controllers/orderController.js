@@ -91,8 +91,9 @@ const checkout = catchAsync(async (req, res, next) => {
 
     // Clear cart
     cart.items = [];
-    cart.recalculate();
-    await cart.save({ session });
+    cart.totalPrice = 0;
+    await Cart.findByIdAndUpdate(cart._id, { items: cart.items, totalPrice: cart.totalPrice }, { session });
+
 
     await session.commitTransaction();
     session.endSession();
