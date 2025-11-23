@@ -1,21 +1,30 @@
 const Cart = require("../models/Cart");
-const AppError = require("../utils/errorUtils");
-const { getProductById } = require("./productService");
+const Product = require("../models/Product");
+const { AppError } = require("../utils/errorUtils");
 const { ERROR_MESSAGES } = require("../utils/constant/Messages");
 
 const getCartByUserId = async (userId) => {
-  const cart = await Cart.findOne({ user: userId }).populate(
+  let cart = await Cart.findOne({ user: userId }).populate(
     "items.product",
-    "name price image"
+    "name price images"
   );
-  return cart || { items: [], subTotal: 0 };
+
+  if (!cart) {
+    // No cart found, create a new one
+    cart = new Cart({ user: userId, items: [] });
+    await cart.save();
+    // Re-fetch to ensure population, though it will be empty
+    cart = await Cart.findOne({ user: userId });
+  }
+  
+  return cart;
 };
 
 const addProductToCart = async (userId, productId, quantity) => {
   if (quantity <= 0) {
     throw new AppError(ERROR_MESSAGES.INVALID_QUANTITY, 400);
   }
-  const product = await getProductById(productId);
+  const product = await Product.findById(productId);
   if (!product) {
     throw new AppError(ERROR_MESSAGES.PRODUCT_NOT_FOUND, 404);
   }
@@ -28,20 +37,23 @@ const addProductToCart = async (userId, productId, quantity) => {
   if (cartItemIndex > -1) {
     cart.items[cartItemIndex].quantity += quantity;
   } else {
-    cart.items.push({ product: productId, quantity });
+    cart.items.push({ 
+        product: productId, 
+        quantity,
+        price: product.price,
+        name: product.name,
+        image: product.images[0]
+    });
   }
 
-  cart.subTotal = cart.items.reduce(
-    (acc, item) => acc + item.quantity * product.price,
-    0
-  );
+  cart.recalculate();
   await cart.save();
   return getCartByUserId(userId);
 };
 
 const updateCartItemQuantity = async (userId, productId, quantity) => {
   if (quantity <= 0) {
-    throw new AppError(ERROR_MESSAGES.INVALID_QUANTITY, 400);
+    return removeProductFromCart(userId, productId);
   }
   const cart = await getCartByUserId(userId);
   const cartItemIndex = cart.items.findIndex(
@@ -53,29 +65,23 @@ const updateCartItemQuantity = async (userId, productId, quantity) => {
   }
 
   cart.items[cartItemIndex].quantity = quantity;
-  cart.subTotal = cart.items.reduce(
-    (acc, item) => acc + item.quantity * item.product.price,
-    0
-  );
+  cart.recalculate();
   await cart.save();
   return getCartByUserId(userId);
 };
 
 const removeProductFromCart = async (userId, productId) => {
   const cart = await getCartByUserId(userId);
-  const cartItemIndex = cart.items.findIndex(
-    (item) => item.product._id.toString() === productId
+  const initialLength = cart.items.length;
+  cart.items = cart.items.filter(
+    (item) => item.product._id.toString() !== productId
   );
 
-  if (cartItemIndex === -1) {
+  if (cart.items.length === initialLength) {
     throw new AppError(ERROR_MESSAGES.PRODUCT_NOT_IN_CART, 404);
   }
 
-  const productPrice = cart.items[cartItemIndex].product.price;
-  const productQuantity = cart.items[cartItemIndex].quantity;
-  cart.subTotal -= productPrice * productQuantity;
-  cart.items.splice(cartItemIndex, 1);
-
+  cart.recalculate();
   await cart.save();
   return getCartByUserId(userId);
 };
@@ -83,8 +89,9 @@ const removeProductFromCart = async (userId, productId) => {
 const clearCart = async (userId) => {
   const cart = await getCartByUserId(userId);
   cart.items = [];
-  cart.subTotal = 0;
+  cart.recalculate();
   await cart.save();
+  return cart;
 };
 
 module.exports = {

@@ -50,7 +50,6 @@ const productSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  // Additional descriptive fields (from product detail view)
   brand: { type: String, trim: true, index: true },
   modelNumber: { type: String, trim: true },
   baseMaterial: { type: String, trim: true },
@@ -69,7 +68,6 @@ const productSchema = new mongoose.Schema({
   occasion: { type: String, trim: true },
   otherDimensions: { type: String, trim: true },
   chainLength: { type: String, trim: true },
-  // Primary main image + additional gallery images
   mainImage: { type: String, trim: true },
   gemstones: [{ type: String, trim: true }],
   images: [{ type: String, trim: true }],
@@ -94,7 +92,6 @@ const productSchema = new mongoose.Schema({
   suppressReservedKeysWarning: true
 });
 
-// Slug generation
 productSchema.pre('validate', function(next) {
   if (this.name && !this.slug) {
     this.slug = slugify(this.name, { lower: true, strict: true });
@@ -102,21 +99,16 @@ productSchema.pre('validate', function(next) {
   next();
 });
 
-// Text index for search across name and description
 productSchema.index({ name: 'text', description: 'text' });
-
-// Indexes to improve common queries
 productSchema.index({ sku: 1 });
 productSchema.index({ category: 1 });
 
-// MRP / discount fields
 productSchema.add({
   mrp: { type: Number, min: 0 },
   discountPercent: { type: Number, min: 0, max: 100 },
   discountAmount: { type: Number, min: 0 }
 });
 
-// Virtual: selling price computed from MRP and discount (if provided).
 productSchema.virtual('sellingPrice').get(function() {
   const mrp = (this.mrp !== undefined && this.mrp !== null) ? Number(this.mrp) : null;
   const discountPercent = (this.discountPercent !== undefined && this.discountPercent !== null) ? Number(this.discountPercent) : null;
@@ -129,12 +121,14 @@ productSchema.virtual('sellingPrice').get(function() {
     if (discountAmount !== null) {
       return Math.max(0, Math.round((mrp - discountAmount) * 100) / 100);
     }
-    // If only MRP provided, treat selling price as MRP (no discount)
     return Math.round(mrp * 100) / 100;
   }
 
-  // Fallback to explicit price stored on document
   return (this.price !== undefined && this.price !== null) ? Number(this.price) : null;
 });
+
+// Ensure virtuals are included
+productSchema.set('toJSON', { virtuals: true });
+productSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('Product', productSchema);
